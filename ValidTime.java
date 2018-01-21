@@ -12,43 +12,92 @@ public class ValidTime{
     public static boolean valid(List<Integer> o){return hours(o)<24&&minutes(o)<60&&seconds(o)<60;}
     public static String string(List<Integer> o){return ""+hours(o)+"::"+minutes(o)+"::"+seconds(o);}
     public static String earliest(int A, int B, int C, int D, int E, int F){
-        return earliestBrute(A,B,C,D,E,F); //brute
+        return earliestAlgorithm(false,A,B,C,D,E,F); //brute
     }
-    public static String earliestBrute(int A, int B, int C, int D, int E, int F){
+    public static String earliestAlgorithm(boolean verbose, int A, int B, int C, int D, int E, int F){
+        LinkedList<Integer> order = new LinkedList(Arrays.asList(A,B,C,D,E,F));
+        Collections.sort(order);
+        LinkedList<Integer> best = new LinkedList<Integer>();
+        // HH:Mm:Ss
+        best.add(order.remove(0)); // H
+        best.add(order.remove(0)); // h
+        if(hours(best)>23) return INVALID; // not valid 0-23
+        else if(hours(best)<20) {
+            if(!(order.get(1)<6)) best.add(1,order.remove(1)); // at least two numbers < 5
+        }
+        if(best.size() == 2) best.add(order.remove(0)); // ensure Hh:M is chosen
+        if(order.get(0)>5) return INVALID; // if no valid number for S is available
+        if(!(order.get(1)<6)) best.add(order.remove(1)); // if only one valid S, set m
+        while(order.size()>0) best.add(order.remove(0)); // plug in the rest
+        return string(best);
+    }
+    public static String earliestBrute(boolean verbose, int A, int B, int C, int D, int E, int F){
         List<Integer> current = Arrays.asList(A,B,C,D,E,F);
         LinkedList<Integer> order = new LinkedList(current);
-        brute(current, order, 0);
+        Collections.sort(order,Collections.reverseOrder());
+        brute(current, order, 0, verbose);
         if(!valid(order)) return INVALID;
         return string(order);
     }
-    public static void brute(List<Integer> current, LinkedList<Integer> best, int index){
+    public static void brute(List<Integer> current, LinkedList<Integer> best, int index, boolean verbose){
         for(int i = index; i<current.size(); i++){
             Collections.swap(current, i, index); // move
-            brute(current,best,index+1);
+            brute(current,best,index+1,verbose);
             Collections.swap(current, index, i); // undo
         }
-        if(index == best.size()-1 && valid(current)&&value(current)<value(best)){
-            best.removeAll(current);best.addAll(current);
+        if(index == current.size()-1 && valid(current) && value(current)<=value(best)){
+            if(verbose)System.out.printf("Current: %s\nBest: %s\n",current,best);
+            best.removeAll(current);
+            best.addAll(current);
         }
     }
     public static void main(String... args){
         System.out.println("Test Begin");
-        int MAX = 100;
+        int span = 10000;
+        long maxBrute = 0;
+        long minBrute = Long.MAX_VALUE;
+        long maxAlgorithm = 0;
+        long minAlgorithm = Long.MAX_VALUE;
         Random rand = new Random();
-        long totalTime = 0;
-        for(int i = 0;i<MAX;i++){
-            long start = System.nanoTime();
-            String result = earliest(rand.nextInt(10),rand.nextInt(10),rand.nextInt(10),rand.nextInt(10),rand.nextInt(10),rand.nextInt(10));
-            if(result.equals(INVALID)){
-                i--;
-                continue;
+        long totalTimeBrute = 0;
+        long totalTimeAlgorithm = 0;
+        int correct = 0;
+        int total = 0;
+        for(int i = 0;i<span;i++){
+            total++;
+            int A = rand.nextInt(10);
+            int B = rand.nextInt(10);
+            int C = rand.nextInt(10);
+            int D = rand.nextInt(10);
+            int E = rand.nextInt(10);
+            int F = rand.nextInt(10);
+            long startBrute = System.nanoTime();
+            String bruteResult = earliestBrute(false,A,B,C,D,E,F);
+            long endBrute = System.nanoTime();
+            long startAlgorithm = System.nanoTime();
+            String algorithmResult = earliestAlgorithm(false,A,B,C,D,E,F);
+            long endAlgorithm = System.nanoTime();
+            if(bruteResult.equals(algorithmResult)) correct++;
+            if(!bruteResult.equals(algorithmResult)){
+                System.out.println("~~~~~");
+                earliestAlgorithm(true,A,B,C,D,E,F);
+                System.out.printf("%d %d %d %d %d %d\nBRUTE: %s\nALGO: %s\n~~~~~\n",A,B,C,D,E,F, bruteResult, algorithmResult);
             }
-            long end = System.nanoTime();
-//            System.out.println("Took "+(end-start)+" nanoseconds");
-            totalTime += end-start;
-
+            if(endBrute-startBrute<minBrute)minBrute=endBrute-startBrute;
+            if(endBrute-startBrute>maxBrute)maxBrute=endBrute-startBrute;
+            totalTimeBrute += endBrute-startBrute;
+            if(endAlgorithm-startAlgorithm<minAlgorithm)minAlgorithm=endAlgorithm-startAlgorithm;
+            if(endAlgorithm-startAlgorithm>maxAlgorithm)maxAlgorithm=endAlgorithm-startAlgorithm;
+            totalTimeAlgorithm += endAlgorithm-startAlgorithm;
         }
-        System.out.println("Average: "+totalTime/MAX + " nanoseconds");
+        System.out.println("Runs: "+span);
+        System.out.println("Average(Brute): "+totalTimeBrute/span + " nanoseconds");
+        System.out.println("Maximum(Brute): "+maxBrute+" nanoseconds");
+        System.out.println("Minimum(Brute): "+minBrute+" nanoseconds");
+        System.out.println("Average(Algorithm): "+totalTimeAlgorithm/span + " nanoseconds");
+        System.out.println("Maximum(Algorithm): "+maxAlgorithm+" nanoseconds");
+        System.out.println("Minimum(Algorithm): "+minAlgorithm+" nanoseconds");
+        System.out.println("Algorithm was correct: "+(100*((float)correct/total))+ "%");
         System.out.println("Test End");
     }
 }
